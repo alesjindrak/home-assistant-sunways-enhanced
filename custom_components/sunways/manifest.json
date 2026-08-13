@@ -1,0 +1,10 @@
+{
+  "domain": "sunways",
+  "name": "Sunways",
+  "codeowners": ["@alesjindrak"],
+  "config_flow": true,
+  "documentation": "https://github.com/alesjindrak/home-assistant-sunways-enhanced",
+  "issue_tracker": "https://github.com/alesjindrak/home-assistant-sunways-enhanced/issues",
+  "iot_class": "cloud_polling",
+  "version": "0.1.0"
+}

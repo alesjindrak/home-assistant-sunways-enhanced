@@ -1,0 +1,65 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Zařízení je již nakonfigurováno",
+            "reauth_successful": "Opětovné ověření bylo úspěšné"
+        },
+        "error": {
+            "cannot_connect": "Připojení se nezdařilo",
+            "invalid_auth": "Neplatné přihlašovací údaje",
+            "no_stations_found": "Nebyla nalezena žádná dostupná elektrárna.",
+            "unknown": "Neočekávaná chyba"
+        },
+        "step": {
+            "reauth_confirm": {
+                "data": {
+                    "password": "Heslo",
+                    "email": "E-mail",
+                    "initial_token": "Počáteční token (volitelné)"
+                },
+                "description": "Zadané přihlašovací údaje přestaly fungovat. Aktualizujte je.",
+                "title": "Aktualizace přihlašovacích údajů Sunways"
+            },
+            "station_id": {
+                "data": {
+                    "station_id": "Elektrárna"
+                },
+                "title": "Vyberte elektrárnu"
+            },
+            "user": {
+                "data": {
+                    "password": "Heslo",
+                    "email": "E-mail",
+                    "initial_token": "Počáteční token (volitelné)"
+                },
+                "data_description": {},
+                "description": "Zadejte přihlašovací údaje pro Sunways API."
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "solar_power": {"name": "Solární výkon"},
+            "installed_power": {"name": "Instalovaný výkon"},
+            "efficiency": {"name": "Využití výkonu"},
+            "battery_soc": {"name": "Stav nabití baterie"},
+            "battery_charging_power": {"name": "Nabíjecí výkon baterie"},
+            "battery_discharging_power": {"name": "Vybíjecí výkon baterie"},
+            "battery_direction": {"name": "Směr toku baterie"},
+            "grid_direction": {"name": "Směr toku sítě"},
+            "load_direction": {"name": "Směr toku spotřeby"},
+            "solar_direction": {"name": "Směr toku fotovoltaiky"},
+            "backup_direction": {"name": "Směr toku EPS"},
+            "backup_power": {"name": "Výkon EPS"},
+            "rssi": {"name": "Signál Wi-Fi (nezpracovaný)"},
+            "station_status": {"name": "Stav elektrárny"},
+            "load_power": {"name": "Výkon spotřeby"},
+            "grid_power_consumption": {"name": "Odběr ze sítě"},
+            "grid_power_return": {"name": "Přetok do sítě"},
+            "daily_generation": {"name": "Denní výroba"},
+            "monthly_generation": {"name": "Měsíční výroba"},
+            "yearly_generation": {"name": "Roční výroba"},
+            "total_generation": {"name": "Celková výroba"}
+        }
+    }
+}
