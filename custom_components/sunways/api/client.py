@@ -1,13 +1,30 @@
 """Simple HTTP client for the Sunways REST user API."""
 
+from datetime import datetime
 from typing import Any, NamedTuple
 from aiohttp.client import ClientSession
 
 from .connection import (
     SunwaysApiConnection,
     TokenJar,
+    API_DEVICE_LIST,
+    API_DEVICE_REALTIME,
     API_STATION_LIST,
     API_STATION_OVERVIEW
+)
+
+
+REALTIME_PATHS = (
+    "vpv1", "vpv2", "ipv1", "ipv2",
+    "vgridPhaseA", "vgridPhaseB", "vgridPhaseC",
+    "igridPhaseA", "igridPhaseB", "igridPhaseC", "fgrid",
+    "activePowerA", "activePowerB", "activePowerC",
+    "backupAV", "backupBV", "backupCV",
+    "backupAI", "backupBI", "backupCI",
+    "backupAF", "backupBF", "backupCF",
+    "soh", "batteryV", "batteryI", "minCellVoltage", "maxCellVoltage",
+    "iChargingLimit", "iDischargeLimit",
+    "temperature1", "bmsPackTemperature",
 )
 
 
@@ -220,6 +237,30 @@ class SunwaysStationOverview:
         return self._data["eTotalUnit"]
 
 
+class SunwaysDeviceRealtime:
+    """Latest detailed inverter values returned by the device curve API."""
+
+    def __init__(self, data: list[dict[str, Any]] | None):
+        self._values: dict[str, float] = {}
+        # Walk backwards and keep the newest value available for every key.
+        for point in reversed(data or []):
+            values = point.get("data") or {}
+            for key, value in values.items():
+                if key not in self._values:
+                    number = SunwaysStationOverview._as_float(value)
+                    if number is not None:
+                        self._values[key] = number
+
+    def value(self, key: str) -> float | None:
+        """Return the latest numeric value for an IEC path."""
+        return self._values.get(key)
+
+    @property
+    def values(self) -> dict[str, float]:
+        """Return a copy of all latest values."""
+        return self._values.copy()
+
+
 class SunwaysClient:
     """
     Simple client for Sunways API
@@ -233,6 +274,7 @@ class SunwaysClient:
         token_jar: TokenJar | None = None
     ):
         self._api = SunwaysApiConnection(email, password, websession, token_jar)
+        self._device_sn_cache: dict[str, str] = {}
 
     async def __aenter__(self):
         await self._api.__aenter__()
@@ -256,3 +298,66 @@ class SunwaysClient:
 
         station = SunwaysStationOverview(result)
         return station
+
+    async def get_station_device_sn(self, station_id: str) -> str | None:
+        """Return the first inverter serial number registered at a station."""
+        if station_id in self._device_sn_cache:
+            return self._device_sn_cache[station_id]
+
+        result = await self._api.request(
+            "get", API_DEVICE_LIST.format(station_id=station_id)
+        )
+        devices: list[dict[str, Any]] = []
+
+        def collect_devices(value: Any) -> None:
+            """Find device dictionaries in any portal response wrapper."""
+            if isinstance(value, dict):
+                if value.get("deviceSn") or value.get("serialNum"):
+                    devices.append(value)
+                for child in value.values():
+                    if isinstance(child, (dict, list)):
+                        collect_devices(child)
+            elif isinstance(value, list):
+                for child in value:
+                    collect_devices(child)
+
+        collect_devices(result)
+
+        # Device type 2 is an inverter. Fall back to any item carrying a serial.
+        inverter = next((d for d in devices if d.get("deviceType") == 2), None)
+        device = inverter or next(
+            (d for d in devices if d.get("deviceSn") or d.get("serialNum")), None
+        )
+        if device is None:
+            return None
+
+        serial = device.get("deviceSn") or device.get("serialNum")
+        if serial:
+            self._device_sn_cache[station_id] = str(serial)
+            return str(serial)
+        return None
+
+    async def get_device_realtime(
+        self,
+        station_id: str,
+        iec_paths: tuple[str, ...] = REALTIME_PATHS,
+    ) -> SunwaysDeviceRealtime:
+        """Get latest detailed inverter values for a station."""
+        device_sn = await self.get_station_device_sn(station_id)
+        if device_sn is None:
+            return SunwaysDeviceRealtime([])
+
+        now = datetime.now().astimezone()
+        offset = now.utcoffset()
+        offset_minutes = int(offset.total_seconds() / 60) if offset else 0
+        payload = {
+            "deviceSn": device_sn,
+            "stationId": station_id,
+            "iecPath": list(iec_paths),
+            "time": now.date().isoformat(),
+            "timeZoneOffset": offset_minutes,
+        }
+        result = await self._api.request(
+            "post", API_DEVICE_REALTIME, json=payload
+        )
+        return SunwaysDeviceRealtime(result if isinstance(result, list) else [])

@@ -101,7 +101,36 @@
             },
             "total_generation": {
                 "name": "Total generation"
-            }
+            },
+            "pv_voltage_1": {"name": "PV voltage 1"},
+            "pv_voltage_2": {"name": "PV voltage 2"},
+            "pv_current_1": {"name": "PV current 1"},
+            "pv_current_2": {"name": "PV current 2"},
+            "grid_voltage_l1": {"name": "Grid voltage L1"},
+            "grid_voltage_l2": {"name": "Grid voltage L2"},
+            "grid_voltage_l3": {"name": "Grid voltage L3"},
+            "grid_current_l1": {"name": "Grid current L1"},
+            "grid_current_l2": {"name": "Grid current L2"},
+            "grid_current_l3": {"name": "Grid current L3"},
+            "grid_frequency": {"name": "Grid frequency"},
+            "eps_voltage_l1": {"name": "EPS voltage L1"},
+            "eps_voltage_l2": {"name": "EPS voltage L2"},
+            "eps_voltage_l3": {"name": "EPS voltage L3"},
+            "eps_current_l1": {"name": "EPS current L1"},
+            "eps_current_l2": {"name": "EPS current L2"},
+            "eps_current_l3": {"name": "EPS current L3"},
+            "eps_frequency_l1": {"name": "EPS frequency L1"},
+            "eps_frequency_l2": {"name": "EPS frequency L2"},
+            "eps_frequency_l3": {"name": "EPS frequency L3"},
+            "battery_soh": {"name": "Battery state of health"},
+            "battery_voltage": {"name": "Battery voltage"},
+            "battery_current": {"name": "Battery current"},
+            "battery_min_cell_voltage": {"name": "Battery minimum cell voltage"},
+            "battery_max_cell_voltage": {"name": "Battery maximum cell voltage"},
+            "battery_charge_current_limit": {"name": "Battery charge current limit"},
+            "battery_discharge_current_limit": {"name": "Battery discharge current limit"},
+            "inverter_temperature": {"name": "Inverter temperature"},
+            "battery_temperature": {"name": "Battery temperature"}
         }
     }
 }
