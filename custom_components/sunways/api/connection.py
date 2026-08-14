@@ -23,6 +23,8 @@ _API_AUTH_INFO = "/monitor/auth/info?useFor=1"
 
 API_STATION_LIST = "/monitor/core/power/station/monitoring/getPage"
 API_STATION_OVERVIEW = "/monitor/core/power/station/overview/getSingleStationOverview"
+API_DEVICE_LIST = "/monitor/core/device/getListByStation/{station_id}"
+API_DEVICE_REALTIME = "/monitor/core/curve/device/queryRealTimeData"
 
 
 ASSUMED_TOKEN_LIFETIME = 60 * 60
@@ -195,4 +197,3 @@ class SunwaysApiConnection:
     def _encode_password(self, password: str) -> str:
         md5_hash = hashlib.md5(password.encode()).hexdigest()
         return base64.b64encode(md5_hash.encode()).decode()
-

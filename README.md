@@ -15,6 +15,14 @@ An enhanced fork of [adamus-tork/home-assistant-sunways](https://github.com/adam
 - EPS/backup power
 - Logger Wi-Fi signal (raw value because the portal does not specify `%` or `dBm`)
 - Station status
+- PV string 1/2 voltage and current
+- Grid voltage and current for L1, L2 and L3
+- Grid frequency
+- EPS voltage, current and frequency for L1, L2 and L3
+- Battery SOH, voltage and current
+- Minimum and maximum battery cell voltage
+- Battery charge and discharge current limits
+- Inverter and battery temperature
 
 The original solar, load, grid and generation sensors remain available.
 
@@ -30,7 +38,7 @@ If the original Sunways integration is already installed, HACS will update the s
 
 ## Compatibility
 
-The extra sensors are based on fields observed in the station-overview response. Missing optional fields return `unknown` instead of failing the whole integration. Detailed battery voltage, current, SOH, temperature and per-string PV data are not supplied by this overview endpoint and require a future detailed-device API implementation.
+The extra sensors combine the station-overview response with the portal's detailed-device `queryRealTimeData` endpoint. The detailed endpoint returns a time series, so the integration uses the newest available value for each parameter. Missing optional fields return `unknown` instead of failing the whole integration. The first inverter returned for a station is currently used when a station contains multiple devices.
 
 ## Attribution
 

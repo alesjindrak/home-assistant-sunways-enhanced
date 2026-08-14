@@ -4,7 +4,15 @@ from __future__ import annotations
 from enum import StrEnum
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntityDescription, SensorStateClass
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfEnergy,
+    UnitOfFrequency,
+    UnitOfPower,
+    UnitOfTemperature,
+)
 
 DOMAIN = "sunways"
 
@@ -46,6 +54,35 @@ class SensorKeys(StrEnum):
     MONTHLY_GENERATION = "monthly_generation"
     YEARLY_GENERATION = "yearly_generation"
     TOTAL_GENERATION = "total_generation"
+    PV_VOLTAGE_1 = "pv_voltage_1"
+    PV_VOLTAGE_2 = "pv_voltage_2"
+    PV_CURRENT_1 = "pv_current_1"
+    PV_CURRENT_2 = "pv_current_2"
+    GRID_VOLTAGE_L1 = "grid_voltage_l1"
+    GRID_VOLTAGE_L2 = "grid_voltage_l2"
+    GRID_VOLTAGE_L3 = "grid_voltage_l3"
+    GRID_CURRENT_L1 = "grid_current_l1"
+    GRID_CURRENT_L2 = "grid_current_l2"
+    GRID_CURRENT_L3 = "grid_current_l3"
+    GRID_FREQUENCY = "grid_frequency"
+    EPS_VOLTAGE_L1 = "eps_voltage_l1"
+    EPS_VOLTAGE_L2 = "eps_voltage_l2"
+    EPS_VOLTAGE_L3 = "eps_voltage_l3"
+    EPS_CURRENT_L1 = "eps_current_l1"
+    EPS_CURRENT_L2 = "eps_current_l2"
+    EPS_CURRENT_L3 = "eps_current_l3"
+    EPS_FREQUENCY_L1 = "eps_frequency_l1"
+    EPS_FREQUENCY_L2 = "eps_frequency_l2"
+    EPS_FREQUENCY_L3 = "eps_frequency_l3"
+    BATTERY_SOH = "battery_soh"
+    BATTERY_VOLTAGE = "battery_voltage"
+    BATTERY_CURRENT = "battery_current"
+    BATTERY_MIN_CELL_VOLTAGE = "battery_min_cell_voltage"
+    BATTERY_MAX_CELL_VOLTAGE = "battery_max_cell_voltage"
+    BATTERY_CHARGE_CURRENT_LIMIT = "battery_charge_current_limit"
+    BATTERY_DISCHARGE_CURRENT_LIMIT = "battery_discharge_current_limit"
+    INVERTER_TEMPERATURE = "inverter_temperature"
+    BATTERY_TEMPERATURE = "battery_temperature"
 
 
 SENSOR_DESCRIPTIONS: dict[SensorKeys, SensorEntityDescription] = {
@@ -220,3 +257,65 @@ SENSOR_DESCRIPTIONS: dict[SensorKeys, SensorEntityDescription] = {
         icon="mdi:calculator-variant",
     ),
 }
+
+
+def _detail_sensor(
+    key: SensorKeys,
+    device_class: SensorDeviceClass,
+    unit: str,
+    icon: str,
+) -> SensorEntityDescription:
+    """Create a detailed-device measurement sensor description."""
+    return SensorEntityDescription(
+        key=f"{key}",
+        translation_key=f"{key}",
+        device_class=device_class,
+        native_unit_of_measurement=unit,
+        suggested_display_precision=2,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon=icon,
+    )
+
+
+for _key in (SensorKeys.PV_VOLTAGE_1, SensorKeys.PV_VOLTAGE_2):
+    SENSOR_DESCRIPTIONS[_key] = _detail_sensor(
+        _key, SensorDeviceClass.VOLTAGE, UnitOfElectricPotential.VOLT, "mdi:solar-panel"
+    )
+for _key in (SensorKeys.PV_CURRENT_1, SensorKeys.PV_CURRENT_2):
+    SENSOR_DESCRIPTIONS[_key] = _detail_sensor(
+        _key, SensorDeviceClass.CURRENT, UnitOfElectricCurrent.AMPERE, "mdi:current-dc"
+    )
+for _key in (
+    SensorKeys.GRID_VOLTAGE_L1, SensorKeys.GRID_VOLTAGE_L2,
+    SensorKeys.GRID_VOLTAGE_L3, SensorKeys.EPS_VOLTAGE_L1,
+    SensorKeys.EPS_VOLTAGE_L2, SensorKeys.EPS_VOLTAGE_L3,
+    SensorKeys.BATTERY_VOLTAGE, SensorKeys.BATTERY_MIN_CELL_VOLTAGE,
+    SensorKeys.BATTERY_MAX_CELL_VOLTAGE,
+):
+    SENSOR_DESCRIPTIONS[_key] = _detail_sensor(
+        _key, SensorDeviceClass.VOLTAGE, UnitOfElectricPotential.VOLT, "mdi:sine-wave"
+    )
+for _key in (
+    SensorKeys.GRID_CURRENT_L1, SensorKeys.GRID_CURRENT_L2,
+    SensorKeys.GRID_CURRENT_L3, SensorKeys.EPS_CURRENT_L1,
+    SensorKeys.EPS_CURRENT_L2, SensorKeys.EPS_CURRENT_L3,
+    SensorKeys.BATTERY_CURRENT, SensorKeys.BATTERY_CHARGE_CURRENT_LIMIT,
+    SensorKeys.BATTERY_DISCHARGE_CURRENT_LIMIT,
+):
+    SENSOR_DESCRIPTIONS[_key] = _detail_sensor(
+        _key, SensorDeviceClass.CURRENT, UnitOfElectricCurrent.AMPERE, "mdi:current-ac"
+    )
+for _key in (
+    SensorKeys.GRID_FREQUENCY, SensorKeys.EPS_FREQUENCY_L1,
+    SensorKeys.EPS_FREQUENCY_L2, SensorKeys.EPS_FREQUENCY_L3,
+):
+    SENSOR_DESCRIPTIONS[_key] = _detail_sensor(
+        _key, SensorDeviceClass.FREQUENCY, UnitOfFrequency.HERTZ, "mdi:sine-wave"
+    )
+for _key in (SensorKeys.INVERTER_TEMPERATURE, SensorKeys.BATTERY_TEMPERATURE):
+    SENSOR_DESCRIPTIONS[_key] = _detail_sensor(
+        _key, SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, "mdi:thermometer"
+    )
+SENSOR_DESCRIPTIONS[SensorKeys.BATTERY_SOH] = _detail_sensor(
+    SensorKeys.BATTERY_SOH, SensorDeviceClass.BATTERY, PERCENTAGE, "mdi:battery-heart-variant"
+)

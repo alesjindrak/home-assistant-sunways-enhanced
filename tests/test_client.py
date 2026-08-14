@@ -31,6 +31,8 @@ def load_client_module():
     connection.TokenJar = object
     connection.API_STATION_LIST = "/stations"
     connection.API_STATION_OVERVIEW = "/overview"
+    connection.API_DEVICE_LIST = "/devices/{station_id}"
+    connection.API_DEVICE_REALTIME = "/realtime"
     sys.modules["sunways.api.connection"] = connection
 
     path = (
@@ -113,6 +115,56 @@ class StationOverviewTest(unittest.TestCase):
         self.assertIsNone(overview.battery_soc)
         self.assertEqual("idle", overview.battery_direction)
         self.assertIsNone(overview.backup_power)
+
+
+class DeviceRealtimeTest(unittest.TestCase):
+    """Test extraction of the newest detailed values."""
+
+    def test_latest_values_are_merged_across_points(self):
+        realtime = CLIENT.SunwaysDeviceRealtime(
+            [
+                {"dataTime": 1000, "data": {"vpv1": 240.1, "batteryV": 50.2}},
+                {"dataTime": 2000, "data": {"vpv1": "245.6", "batteryV": None}},
+                {"dataTime": 3000, "data": {}},
+            ]
+        )
+
+        self.assertEqual(245.6, realtime.value("vpv1"))
+        self.assertEqual(50.2, realtime.value("batteryV"))
+        self.assertIsNone(realtime.value("notSupported"))
+
+    def test_invalid_values_are_ignored(self):
+        realtime = CLIENT.SunwaysDeviceRealtime(
+            [{"data": {"vpv1": "offline", "vpv2": ""}}]
+        )
+
+        self.assertEqual({}, realtime.values)
+
+
+class ClientDetailedApiTest(unittest.IsolatedAsyncioTestCase):
+    """Test detailed API discovery and request payload."""
+
+    async def test_device_discovery_and_realtime_request(self):
+        calls = []
+
+        class FakeApi:
+            async def request(self, method, endpoint, **kwargs):
+                calls.append((method, endpoint, kwargs))
+                if endpoint.startswith("/devices/"):
+                    return {"items": [{"deviceType": 2, "deviceSn": "TEST-SN"}]}
+                return [{"dataTime": 1, "data": {"vpv1": 251.4}}]
+
+        client = CLIENT.SunwaysClient.__new__(CLIENT.SunwaysClient)
+        client._api = FakeApi()
+        client._device_sn_cache = {}
+
+        result = await client.get_device_realtime("TEST-STATION", ("vpv1",))
+
+        self.assertEqual(251.4, result.value("vpv1"))
+        self.assertEqual("post", calls[1][0])
+        self.assertEqual("TEST-SN", calls[1][2]["json"]["deviceSn"])
+        self.assertEqual("TEST-STATION", calls[1][2]["json"]["stationId"])
+        self.assertEqual(["vpv1"], calls[1][2]["json"]["iecPath"])
 
 
 if __name__ == "__main__":
