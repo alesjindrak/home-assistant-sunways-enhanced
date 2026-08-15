@@ -155,6 +155,9 @@ class Client:
 class CoordinatorFailureTest(unittest.IsolatedAsyncioTestCase):
     """Verify that short cloud failures do not create one-minute gaps."""
 
+    def test_fast_polling_interval(self):
+        self.assertEqual(30, COORDINATOR.SCAN_INTERVAL.total_seconds())
+
     async def test_detail_timeout_keeps_overview_and_previous_detail(self):
         client = Client()
         coordinator = COORDINATOR.SunwaysStationOverviewUpdateCoordinator(
