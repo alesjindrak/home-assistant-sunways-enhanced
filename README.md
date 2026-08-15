@@ -26,6 +26,10 @@ An enhanced fork of [adamus-tork/home-assistant-sunways](https://github.com/adam
 
 The original solar, load, grid and generation sensors remain available.
 
+Transient portal errors keep the last valid values. The integration only marks
+the station unavailable after three consecutive overview failures, preventing
+one-minute gaps without hiding a longer outage.
+
 ## HACS installation
 
 1. Open HACS in Home Assistant.
