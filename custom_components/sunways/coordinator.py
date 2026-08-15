@@ -89,14 +89,17 @@ class SunwaysStationOverviewUpdateCoordinator(DataUpdateCoordinator[SunwaysStati
         self._client = client
         self._station_id = station_id
         self._logger = logger
+        self._detail_values = {key: None for key in DETAIL_SENSOR_PATHS}
+        self._consecutive_overview_failures = 0
 
     async def _async_update_data(self):
         """Fetch data from API endpoint."""
 
         try:
-            async with asyncio.timeout(20):
+            async with asyncio.timeout(10):
                 overview = await self._client.get_station_overview(self._station_id)
-                sensors = {
+            self._consecutive_overview_failures = 0
+            sensors = {
                         SensorKeys.SOLAR_POWER: convert_to_kilo(overview.solar_power, overview.solar_power_unit),
                         SensorKeys.INSTALLED_POWER: convert_to_kilo(overview.installed_power, overview.installed_power_unit),
                         SensorKeys.EFFICIENCY: overview.solar_installed_ratio if overview.solar_installed_ratio else 0.0,
@@ -118,27 +121,45 @@ class SunwaysStationOverviewUpdateCoordinator(DataUpdateCoordinator[SunwaysStati
                         SensorKeys.MONTHLY_GENERATION: convert_to_kilo(overview.monthly_generation, overview.monthly_generation_unit),
                         SensorKeys.YEARLY_GENERATION: convert_to_mega(overview.yearly_generation, overview.yearly_generation_unit),
                         SensorKeys.TOTAL_GENERATION: convert_to_mega(overview.total_generation, overview.total_generation_unit),
-                }
+            }
 
-                # Always expose supported detail entities. A missing value is
-                # represented as unknown and never breaks the overview update.
-                sensors.update({key: None for key in DETAIL_SENSOR_PATHS})
-                try:
+            # Detailed data is refreshed every minute too, but it is isolated
+            # from the overview update. A slow or empty curve response keeps
+            # the most recent valid values instead of making entities vanish.
+            sensors.update(self._detail_values)
+            try:
+                async with asyncio.timeout(10):
                     realtime = await self._client.get_device_realtime(self._station_id)
-                    sensors.update(
-                        {
-                            sensor_key: realtime.value(iec_path)
-                            for sensor_key, iec_path in DETAIL_SENSOR_PATHS.items()
-                        }
-                    )
-                except SunwaysClientException as err:
-                    self._logger.warning(
-                        "Sunways detailed device data is unavailable: %s", err
-                    )
+                for sensor_key, iec_path in DETAIL_SENSOR_PATHS.items():
+                    value = realtime.value(iec_path)
+                    if value is not None:
+                        self._detail_values[sensor_key] = value
+                sensors.update(self._detail_values)
+            except (SunwaysClientException, TimeoutError) as err:
+                self._logger.warning(
+                    "Sunways detailed device data is temporarily unavailable; "
+                    "keeping the previous values: %s",
+                    err,
+                )
+            except Exception as err:  # Keep optional detail failures isolated.
+                self._logger.exception(
+                    "Unexpected Sunways detailed-data error; keeping the "
+                    "previous values: %s",
+                    err,
+                )
 
-                return {
-                    'id': self._station_id,
-                    'sensors': sensors,
-                }
-        except SunwaysClientException as err:
+            return {
+                'id': self._station_id,
+                'sensors': sensors,
+            }
+        except (SunwaysClientException, TimeoutError) as err:
+            self._consecutive_overview_failures += 1
+            if self.data is not None and self._consecutive_overview_failures < 3:
+                self._logger.warning(
+                    "Sunways overview update failed (%s/3); keeping the previous "
+                    "values: %s",
+                    self._consecutive_overview_failures,
+                    err,
+                )
+                return self.data
             raise UpdateFailed(f"Error communicating with API: {err}") from err
