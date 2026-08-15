@@ -14,7 +14,7 @@ from .api.client import SunwaysClient, SunwaysStationOverview
 from .api.exceptions import SunwaysClientException
 from .const import SensorKeys
 
-SCAN_INTERVAL = timedelta(seconds=60)
+SCAN_INTERVAL = timedelta(seconds=30)
 
 DETAIL_SENSOR_PATHS = {
     SensorKeys.PV_VOLTAGE_1: "vpv1",
