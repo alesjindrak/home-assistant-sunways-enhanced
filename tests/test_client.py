@@ -7,8 +7,10 @@ from pathlib import Path
 import sys
 import types
 import unittest
+from unittest.mock import patch
 
 
+@patch.dict(sys.modules)
 def load_client_module():
     """Load client.py without requiring a Home Assistant installation."""
     package = types.ModuleType("sunways")

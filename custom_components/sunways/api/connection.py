@@ -1,5 +1,6 @@
 """Internal Sunways client."""
 
+import asyncio
 import hashlib
 import base64
 import time
@@ -14,6 +15,7 @@ from .exceptions import (
     ConnectionFailed,
     LoginFailed,
     RequestFailed,
+    SystemBusy,
 )
 
 
@@ -28,6 +30,7 @@ API_DEVICE_REALTIME = "/monitor/core/curve/device/queryRealTimeData"
 
 
 ASSUMED_TOKEN_LIFETIME = 60 * 60
+BUSY_RETRY_DELAYS = (1, 2)
 
 
 @dataclass
@@ -62,6 +65,7 @@ class SunwaysApiConnection:
         self._verify_ssl = True
         self._token_jar = token_jar
         self._token_ttl = ASSUMED_TOKEN_LIFETIME
+        self._request_lock = asyncio.Lock()
 
     async def _get_session(self) -> ClientSession:
         if self._session is None:
@@ -94,14 +98,27 @@ class SunwaysApiConnection:
 
     async def login(self):
         """Call to login and store token."""
+        async with self._request_lock:
+            await self._login()
+
+    async def _login(self):
+        """Authenticate while the caller holds the request lock."""
+        self._token_jar = None
+        self._token_ttl = ASSUMED_TOKEN_LIFETIME
 
         encoded_password = self._encode_password(self._password)
         auth = {"email": self._email, "password": encoded_password, "channel": 1}
         await self._do_request("post", _API_LOGIN, json=auth)
+        if self._token_jar is None or not self._token_jar.token:
+            raise LoginFailed(-1, "Login response did not contain a token")
 
     async def _check_login(self) -> bool:
         """Check token validity."""
-        if self._token_jar is None:
+        if (
+            self._token_jar is None
+            or not self._token_jar.token
+            or self._token_jar.issued is None
+        ):
             return False
         
         current_lifetime = time.time() - self._token_jar.issued
@@ -112,26 +129,50 @@ class SunwaysApiConnection:
 
         try:
             response = await self._do_request("get", _API_AUTH_INFO)
-            if response["userInfo"]:
+            if response.get("userInfo"):
                 # Extend token ttl
                 self._token_ttl += ASSUMED_TOKEN_LIFETIME
                 return True
-        except:  # pylint: disable=bare-except  # noqa: E722
-            pass
-    
-        # Reduce token ttl
-        self._token_ttl -= ASSUMED_TOKEN_LIFETIME            
+        except LoginFailed:
+            self._token_jar = None
+
         return False
 
     async def request(self, method: str, end_point: str, params=None, json=None, data: Payload | None = None) -> Any:
         """Perform a request to the API, with authentication"""
 
-        if not await self._check_login():
-            await self.login()
+        # Serialize authentication and requests so a second refresh cannot
+        # invalidate the token that an in-flight request is using.
+        async with self._request_lock:
+            if not await self._check_login():
+                await self._login()
 
-        return await self._do_request(method, end_point, params=params, json=json, data=data)
+            for attempt in range(2):
+                try:
+                    return await self._do_request(
+                        method, end_point, params=params, json=json, data=data
+                    )
+                except LoginFailed:
+                    self._token_jar = None
+                    if attempt:
+                        raise
+                    # The server can expire a token before our assumed TTL.
+                    # Reauthenticate once and replay the original request.
+                    await self._login()
 
     async def _do_request(self, method: str, end_point: str, params=None, json=None, data: Payload | None = None) -> Any:
+        """Retry explicit temporary busy responses with a bounded backoff."""
+        for attempt in range(len(BUSY_RETRY_DELAYS) + 1):
+            try:
+                return await self._do_request_once(
+                    method, end_point, params=params, json=json, data=data
+                )
+            except SystemBusy:
+                if attempt == len(BUSY_RETRY_DELAYS):
+                    raise
+                await asyncio.sleep(BUSY_RETRY_DELAYS[attempt])
+
+    async def _do_request_once(self, method: str, end_point: str, params=None, json=None, data: Payload | None = None) -> Any:
         """Perform a request to the API, and unpack the response."""
 
         url = urljoin(self._url, end_point)
@@ -172,6 +213,7 @@ class SunwaysApiConnection:
                 if "token" in response.headers:
                     response_token = response.headers["token"]
                     self._token_jar = TokenJar(response_token, time.time())
+                    self._token_ttl = ASSUMED_TOKEN_LIFETIME
 
                 # Unpack response data
                 if "data" in content:
@@ -188,11 +230,15 @@ class SunwaysApiConnection:
             return
         if "code" not in response:
             raise RequestFailed(-1, "Unexpected response: " + str(response))
-        if response["code"] == "1000000":
+        code = str(response["code"])
+        if code == "1000000":
             return
-        if response["code"].lower().startswith("auth_"):
-            raise LoginFailed(response["code"], response["msg"])
-        raise RequestFailed(response["code"], response["msg"])
+        message = response.get("msg", "Unknown API error")
+        if code.lower().startswith("auth_"):
+            raise LoginFailed(code, message)
+        if code == "3010107":
+            raise SystemBusy(code, message)
+        raise RequestFailed(code, message)
     
     def _encode_password(self, password: str) -> str:
         md5_hash = hashlib.md5(password.encode()).hexdigest()

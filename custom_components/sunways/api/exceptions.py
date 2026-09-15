@@ -8,7 +8,7 @@ class SunwaysClientException(Exception):
 class RequestFailed(SunwaysClientException):
     """Generic rejection of any command by the controller."""
 
-    def __init__(self, error_code: int, msg: str):
+    def __init__(self, error_code: int | str, msg: str):
         self._error_code = error_code
         self._msg = msg
         super().__init__(f"Sunways API responded '{msg}' ({error_code})")
@@ -16,6 +16,10 @@ class RequestFailed(SunwaysClientException):
 
 class LoginFailed(RequestFailed):
     """Username/Password failure or token not valid any more."""
+
+
+class SystemBusy(RequestFailed):
+    """The portal explicitly asked the client to try again later."""
 
 
 class ConnectionFailed(SunwaysClientException):

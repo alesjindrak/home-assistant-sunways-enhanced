@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import types
 import unittest
+from unittest.mock import patch
 
 
 class FakeCoordinator:
@@ -24,6 +25,7 @@ class FakeUpdateFailed(Exception):
     """Home Assistant update error stub."""
 
 
+@patch.dict(sys.modules)
 def load_coordinator_module():
     """Load coordinator.py without a Home Assistant installation."""
     homeassistant = types.ModuleType("homeassistant")

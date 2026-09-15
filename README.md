@@ -31,6 +31,13 @@ Transient portal errors keep the last valid values. The integration only marks
 the station unavailable after three consecutive overview failures, preventing
 one-minute gaps without hiding a longer outage.
 
+Expired sessions trigger one automatic login and a replay of the failed request,
+even when the token is younger than the assumed one-hour lifetime. Explicit
+`3010107` (system busy) responses are retried twice, after 1 and 2 seconds,
+including during login and token validation. Other request errors are not
+retried. The existing coordinator timeouts still limit the total update time;
+exhausted retries follow the existing transient-failure handling.
+
 ## HACS installation
 
 1. Open HACS in Home Assistant.
